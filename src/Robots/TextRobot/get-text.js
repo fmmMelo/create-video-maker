@@ -1,10 +1,15 @@
 require('dotenv').config();
 const algorithmia = require('algorithmia');
+const sentencesDetection = require('sbd');
+
 const credentialsApiKey = process.env.CREDENTIALS;
+
 
 async function robot(content)
     {
         await fetchContentFromWikipedia(content);
+        sanitizeContent(content);
+        breakSentencesDetection(content);
 
     async function fetchContentFromWikipedia(content)
         {
@@ -20,9 +25,53 @@ async function robot(content)
                 const wikiResult = wikiContent.result;
 
                 content.originalContent = wikiResult.content;
+        }
 
-                console.log(content.originalContent);
-        };
-    };
+
+        function sanitizeContent(content)
+        {
+            const withoutBlankLinesAndMarkdown = removeBlankLinesAndMarkdown(content.originalContent);
+            const withoutDatesInParentheses = removeDatesInParentheses(withoutBlankLinesAndMarkdown);
+
+            content.sourceContentSanitized = withoutDatesInParentheses;
+
+                function removeBlankLinesAndMarkdown(text)
+                {
+                    const allLines = text + '';
+                    const lineSanitize = allLines.split('\n');
+
+                    const withoutBlankLinesAndMarkdown = lineSanitize.filter((line) => 
+                    {
+                        if(line.trim().length === 0 || line.trim().startsWith('='))
+                        {
+                            return false
+                        }
+                        return true
+                    });
+                    return withoutBlankLinesAndMarkdown.join(' ')
+                }
+            }
+
+            function removeDatesInParentheses(text) {
+                return text.replace(/\((?:\([^()]*\)|[^()])*\)/gm, '').replace(/  /g,' ')
+              }
+              
+              function breakSentencesDetection(content)
+              {
+                    content.sentences = [];
+                    const sentences = sentencesDetection.sentences(content.sourceContentSanitized);
+                        
+                    sentences.forEach((sentence) => {
+                        content.sentences.push({
+                            text: sentence,
+                            keywords: [],
+                            image: [],
+        
+                        });
+                    });
+              }
+
+    }
+
 
 module.exports = robot
